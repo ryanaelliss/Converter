@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fraction/Decimal Converter</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+        }
+        
+        h1 {
+            color: #4a5568;
+            margin-bottom: 10px;
+            font-weight: 700;
+            font-size: 2.5rem;
+        }
+        
+        p {
+            color: #718096;
+            margin-bottom: 30px;
+            font-size: 1.1rem;
+            line-height: 1.5;
+        }
+        
+        input {
+            width: 100%;
+            padding: 15px 20px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 18px;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+            transition: all 0.3s ease;
+            background: #fff;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        #result {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            font-size: 24px;
+            font-weight: 700;
+            color: #2d3748;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        
+        .examples {
+            background: #edf2f7;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 30px;
+            text-align: left;
+        }
+        
+        .examples h3 {
+            margin-top: 0;
+            color: #4a5568;
+            font-size: 1.2rem;
+        }
+        
+        .examples ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .examples li {
+            padding: 5px 0;
+            color: #718096;
+            font-size: 0.95rem;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                padding: 30px 20px;
+            }
+            h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Multi-Converter</h1>
+        <p>Convert fractions, decimals, or time (1 hour = 60 minutes)</p>
+        <p style="color: #e53e3e; font-size: 0.9rem; margin-bottom: 20px;"><strong>Note:</strong> If conversion doesn't work, try running a local server: <code>python -m http.server 8000</code> then open <code>http://localhost:8000/index.html</code></p>
+        
+        <div style="margin-bottom: 30px;">
+            <select id="conversionType" onchange="updatePlaceholder()" style="width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #e2e8f0; font-size: 16px; margin-bottom: 20px; background: #fff;">
+                <option value="time">Minutes → Decimal Hours</option>
+                <option value="fraction">Fraction ↔ Decimal</option>
+            </select>
+            
+            <input type="text" id="input" placeholder="e.g., 1/2, 0.5, or 0.333">
+            <button onclick="convert()">Convert</button>
+            <div id="result">Result will appear here</div>
+        </div>
+        
+        <div class="examples">
+            <h3 id="examplesTitle">Examples:</h3>
+            <ul id="examplesList">
+                <li><strong>Fractions:</strong> 1/2, 3/4, 5 / 8</li>
+                <li><strong>Decimals:</strong> 0.5, 0.25, 0.333</li>
+                <li><strong>Repeating:</strong> 0.333 (detects as 1/3)</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function gcd(a, b) {
+            a = Math.abs(a);
+            b = Math.abs(b);
+            while (b !== 0) {
+                var t = b;
+                b = a % b;
+                a = t;
+            }
+            return a;
+        }
+
+        function fractionToDecimal(fraction) {
+            var parts = fraction.split('/').map(function(p) { return p.trim(); });
+            if (parts.length !== 2) throw new Error('Invalid fraction format. Use num/den or num / den');
+            var num = parseFloat(parts[0]);
+            var den = parseFloat(parts[1]);
+            if (isNaN(num) || isNaN(den) || den === 0) throw new Error('Invalid numbers in fraction');
+            return num / den;
+        }
+
+        function findRepeating(decimalPart) {
+            var len = decimalPart.length;
+            if (len < 2) return { nonRepeating: decimalPart, repeating: '' };
+            
+            for (var period = 1; period <= Math.floor(len / 2); period++) {
+                if (len % period === 0) {
+                    var unit = decimalPart.substring(0, period);
+                    var isRepeating = true;
+                    for (var i = period; i < len; i += period) {
+                        if (decimalPart.substring(i, i + period) !== unit) {
+                            isRepeating = false;
+                            break;
+                        }
+                    }
+                    if (isRepeating) {
+                        return { nonRepeating: '', repeating: unit };
+                    }
+                }
+            }
+            return { nonRepeating: decimalPart, repeating: '' };
+        }
+
+        function timeToWorkScale(timeStr) {
+            var cleaned = timeStr.replace(/\s+/g, '');
+            
+            // Support formats: HH:MM, HH.MM, or just MM (assumed minutes)
+            var totalMinutes = 0;
+            
+            if (cleaned.indexOf(':') !== -1 || cleaned.indexOf('.') !== -1) {
+                var separator = cleaned.indexOf(':') !== -1 ? ':' : '.';
+                var parts = cleaned.split(separator);
+                if (parts.length !== 2) throw new Error('Invalid time format. Use HH:MM or H.MM');
+                
+                var hours = parseInt(parts[0]) || 0;
+                var minutes = parseInt(parts[1]) || 0;
+                
+                if (hours < 0 || minutes < 0 || minutes > 59) {
+                    throw new Error('Invalid time values');
+                }
+                
+                totalMinutes = hours * 60 + minutes;
+            } else {
+                // Assume it's just minutes
+                totalMinutes = parseInt(cleaned);
+                if (isNaN(totalMinutes) || totalMinutes < 0) {
+                    throw new Error('Invalid minutes value');
+                }
+            }
+            
+            // Convert minutes to decimal hours (assuming 60-minute hour)
+            var decimalHours = totalMinutes / 60;
+            return decimalHours.toFixed(2) + ' hours';
+        }
+
+        function updatePlaceholder() {
+            var type = document.getElementById('conversionType').value;
+            var input = document.getElementById('input');
+            var examplesTitle = document.getElementById('examplesTitle');
+            var examplesList = document.getElementById('examplesList');
+            
+            if (type === 'time') {
+                input.placeholder = 'e.g., 5, 30, 2:30, or 1.5';
+                examplesTitle.textContent = 'Time Examples:';
+                examplesList.innerHTML = '<li><strong>Minutes:</strong> 5 → 0.08 hours</li><li><strong>Hours:Minutes:</strong> 2:30 → 2.50 hours</li><li><strong>Decimal Hours:</strong> 1.5 → 1.50 hours</li><li><strong>Note:</strong> Standard 60-minute hour</li>';
+            } else {
+                input.placeholder = 'e.g., 1/2, 0.5, or 0.333';
+                examplesTitle.textContent = 'Examples:';
+                examplesList.innerHTML = '<li><strong>Fractions:</strong> 1/2, 3/4, 5 / 8</li><li><strong>Decimals:</strong> 0.5, 0.25, 0.333</li><li><strong>Repeating:</strong> 0.333 (detects as 1/3)</li>';
+            }
+        }
+
+        function decimalToFraction(decimalStr) {
+            var input = decimalStr.trim();
+            var negative = input.charAt(0) === '-';
+            var str = negative ? input.substring(1) : input;
+
+            var parts = str.split('.');
+            if (parts.length > 2) throw new Error('Invalid decimal format');
+
+            var integerPart = parseInt(parts[0]) || 0;
+            var decimalPart = (parts[1] || '').replace(/\s+/g, ''); // remove spaces from decimal part
+
+            var nonRepeating = '';
+            var repeating = '';
+
+            var openParen = decimalPart.indexOf('(');
+            var closeParen = decimalPart.indexOf(')');
+
+            if (openParen !== -1 && closeParen !== -1 && openParen < closeParen) {
+                // Explicit repeating with parentheses
+                nonRepeating = decimalPart.substring(0, openParen);
+                repeating = decimalPart.substring(openParen + 1, closeParen);
+            } else if (openParen === -1 && closeParen === -1) {
+                // No parentheses, try to detect repeating
+                var detected = findRepeating(decimalPart);
+                nonRepeating = detected.nonRepeating;
+                repeating = detected.repeating;
+            } else {
+                throw new Error('Invalid repeating decimal format. Use ( ) for repeating part or enter repeating digits');
+            }
+
+            var nr = nonRepeating ? parseInt(nonRepeating) : 0;
+            var r = repeating ? parseInt(repeating) : 0;
+            var lenNr = nonRepeating.length;
+            var lenR = repeating.length;
+
+            var num, den;
+
+            if (lenR === 0) {
+                num = nr;
+                den = Math.pow(10, lenNr);
+            } else {
+                var tenLenR = Math.pow(10, lenR);
+                var tenLenNr = Math.pow(10, lenNr);
+                var tenLenNrPlusR = Math.pow(10, lenNr + lenR);
+
+                num = nr * (tenLenR - 1) + r;
+                den = tenLenNrPlusR - tenLenNr;
+            }
+
+            // Add integer part
+            var totalNum = integerPart * den + num;
+            var totalDen = den;
+
+            // Simplify
+            var g = gcd(totalNum, totalDen);
+            totalNum /= g;
+            totalDen /= g;
+
+            var result = totalNum + '/' + totalDen;
+            return negative ? '-' + result : result;
+        }
+
+        // Initialize placeholder on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            updatePlaceholder();
+        });
+
+        function convert() {
+            var type = document.getElementById('conversionType').value;
+            var input = document.getElementById('input').value.trim();
+            var resultDiv = document.getElementById('result');
+            
+            try {
+                var result;
+                if (type === 'time') {
+                    result = timeToWorkScale(input);
+                } else {
+                    if (input.indexOf('/') !== -1) {
+                        var decimal = fractionToDecimal(input);
+                        result = 'Decimal: ' + decimal;
+                    } else {
+                        var fraction = decimalToFraction(input);
+                        result = 'Fraction: ' + fraction;
+                    }
+                }
+                resultDiv.textContent = result;
+            } catch (error) {
+                resultDiv.textContent = 'Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>
